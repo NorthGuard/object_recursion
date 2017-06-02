@@ -137,7 +137,7 @@ def type_recursive(obj, sampling=None, delimiter="[", or_divider="|", and_divide
 
     # Functions / callable
     if isinstance(obj, Callable):
-        return "callable()"
+        return "{}()".format(obj.__name__)
 
     # Default
     return t.__name__

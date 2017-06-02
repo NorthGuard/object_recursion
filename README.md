@@ -38,12 +38,11 @@ False                                              : bool
 [(1, 'a'), (2, 'b')]                               : list[tuple[int,str]]
 {1: 'b', 2: 'c'}                                   : dict[int: str]
 {1: 'b', 2: None}                                  : dict[int: None|str]
-[<__main__.Foo object at 0x0000028E3861FC50>]      : list[Foo]
-[<function bar at 0x0000028E3857C488>]             : list[callable()]
+[<__main__.Foo object at 0x0000028E385C0CC0>]      : list[Foo]
+[<function bar at 0x0000028E386110D0>]             : list[bar()]
 Bob(a=1, b=2, c=3)                                 : Bob[int,int,int]
 array([1, 2, 3])                                   : np.1darray[int32]
 array([['1', 'b'], ['3', '4']], dtype='<U11')      : np.2darray[str_]
-
 ```
 
 
@@ -57,7 +56,10 @@ The symbols below are used in the representation, but can all be changed with op
 `[]` Delimiters of types contained within another object (fx. lists, tuples or dictionaries).  
 `|` Indicates that a mutable object can have various interchangeable types (fx. lists).  
 `,` Indicates that an immutable object can have various ordered types (fx. tuples).   
-`:` Symbol for the mapping from one type to another (fx. dictionaries).
+`:` Symbol for the mapping from one type to another (fx. dictionaries).  
+`()` Indicates that the passed argument is callable.  
+
+If a user-defined class is both en iterable and callable etc. then it will only be shown as one of those things.
 
 ##### Numpy dimensions
 
