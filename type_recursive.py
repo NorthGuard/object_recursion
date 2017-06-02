@@ -7,9 +7,9 @@ from typing import Iterable, Dict, Callable, Tuple
 def _type_recursive_iterable(obj, sampling, or_divider, l, r):
     # Get type-strings of elements in iterable (recursive)
     if sampling is None:
-        tps = list(set(type_recursive(e) for e in obj))
+        tps = list(set(rtype(e) for e in obj))
     else:
-        tps = list(set(type_recursive(e) for e in random.sample(list(obj), sampling)))
+        tps = list(set(rtype(e) for e in random.sample(list(obj), sampling)))
 
     # Get name of object
     name = type(obj).__name__
@@ -23,9 +23,9 @@ def _type_recursive_iterable(obj, sampling, or_divider, l, r):
 def _type_recursive_dict(obj, sampling, or_divider, map_divider, l, r):
     # Get type-strings of keys and values (recursive)
     if sampling is None:
-        tps = set((type_recursive(k), type_recursive(v)) for (k, v) in obj.items())
+        tps = set((rtype(k), rtype(v)) for (k, v) in obj.items())
     else:
-        tps = set((type_recursive(k), type_recursive(v)) for (k, v) in random.sample(obj.items(), sampling))
+        tps = set((rtype(k), rtype(v)) for (k, v) in random.sample(obj.items(), sampling))
 
     # Get key-types and value-types
     key_types = set(k for (k, v) in tps)
@@ -44,9 +44,9 @@ def _type_recursive_dict(obj, sampling, or_divider, map_divider, l, r):
 def _type_recursive_tuple(obj, sampling, and_divider, l, r):
     # Get type-strings of elements in tuple (recursive)
     if sampling is None:
-        tps = [type_recursive(e) for e in obj]
+        tps = [rtype(e) for e in obj]
     else:
-        tps = [type_recursive(e) for e in random.sample(list(obj), sampling)]
+        tps = [rtype(e) for e in random.sample(list(obj), sampling)]
 
     # Get name of object
     name = type(obj).__name__
@@ -70,9 +70,9 @@ def _type_recursive_numpy(obj, show_numpy_dimensions, sampling, or_divider, l, r
 
     # Get type-strings of elements in object (recursive)
     if sampling is None:
-        tps = list(set(type_recursive(e) for e in items))
+        tps = list(set(rtype(e) for e in items))
     else:
-        tps = list(set(type_recursive(e) for e in random.sample(items, sampling)))
+        tps = list(set(rtype(e) for e in random.sample(items, sampling)))
 
     # Get number of dimensions
     dims = len(obj.shape)
@@ -101,8 +101,8 @@ def _delimiter_types(delimiter="<"):
         return "<", ">"
 
 
-def type_recursive(obj, sampling=None, delimiter="[", or_divider="|", and_divider=",", map_divider=": ",
-                   show_numpy_dimensions=True):
+def rtype(obj, sampling=None, delimiter="[", or_divider="|", and_divider=",", map_divider=": ",
+          show_numpy_dimensions=True):
 
     # Get delimiters
     l, r = _delimiter_types(delimiter=delimiter)
@@ -183,4 +183,4 @@ if __name__ == "__main__":
         array,
         array2
     ]:
-        print("{: <50}".format(whitespace.sub(" ", repr(obj))), ":", type_recursive(obj))
+        print("{: <50}".format(whitespace.sub(" ", repr(obj))), ":", rtype(obj))
