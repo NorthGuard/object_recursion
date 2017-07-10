@@ -160,8 +160,7 @@ if __name__ == "__main__":
     array = np.array([1, 2, 3])
     array2 = np.array([[1, "b"], [3, 4]])
 
-    # Run a ton of examples
-    for obj in [
+    items = [
         1,
         2.3,
         None,
@@ -182,5 +181,8 @@ if __name__ == "__main__":
         bob(1, 2, 3),
         array,
         array2
-    ]:
+    ]
+
+    # Run a ton of examples
+    for obj in items:
         print("{: <50}".format(whitespace.sub(" ", repr(obj))), ":", rtype(obj))
