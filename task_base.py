@@ -84,6 +84,9 @@ class TreeRecursionTask(RecursionTask):
     def _non_terminate(self, *, obj_id, obj, edge, parent, recurser):
         raise NotImplementedError
 
+    def _note_object_finished(self, *, obj_id, obj, edge, parent, recurser):
+        pass
+
     def _finish_object(self, *, obj_id, edge, parent, recurser):
         """
         Finish the task on the object, using information about all children.
@@ -101,7 +104,11 @@ class TreeRecursionTask(RecursionTask):
             return self._object_conclusion[obj_id]
 
         # Get object
-        obj = recurser.objects[obj_id]
+        # TODO: Debugging
+        try:
+            obj = recurser.objects[obj_id]
+        except KeyError as e:
+            raise e
 
         # Termination
         terminate_bool, terminate_return = self._terminate(obj_id=obj_id,
@@ -137,6 +144,13 @@ class TreeRecursionTask(RecursionTask):
         # Remove from path (reference-loop avoidance)
         if self._current_path and self._current_path[-1] == obj_id:
             self._current_path.pop()
+
+        # Note finished object
+        self._note_object_finished(obj_id=obj_id,
+                                   obj=obj,
+                                   edge=edge,
+                                   parent=parent,
+                                   recurser=recurser)
 
         # Note object-representation
         self._object_conclusion[obj_id] = conclusion

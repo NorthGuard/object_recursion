@@ -25,6 +25,9 @@ def header(text, length):
     increment = int(max(((length - len(text)) / 2) - 5, 0))
     print(" " * increment + "-" * (len(text) + 10))
 
+def truncate(string, length=45):
+    return string[:length] + (string[length:] and ' ..')
+
 # #############################################################################################
 
 # Recursive container tree-string
@@ -60,10 +63,12 @@ looper1.a = looper2
 looper2.a = looper3
 looper3.a = looper1
 
-container_looper1 = [0, 1, 2, 3]
-container_looper2 = [0, 1, container_looper1, 3]
-container_looper3 = [0, 1, container_looper2, 3]
-container_looper1[2] = container_looper3
+long_list = [1] * 100
+
+cont_looper1 = [1, 2, looper2] + long_list
+cont_looper2 = [2, cont_looper1]
+cont_looper3 = [4, cont_looper2]
+cont_looper1[1] = cont_looper3
 
 bob = namedtuple("Bob", "a, b, c")
 array = np.array([1, 2, 3])
@@ -90,7 +95,8 @@ items = [
     array,
     array2,
     looper1,
-    container_looper1
+    cont_looper1,
+    long_list
 ]
 
 # Recursive type prints
@@ -102,7 +108,7 @@ header("Recursive object-type.", line_length)
 print(formatter.format("Object", "rtype()"))
 line(line_length)
 for obj in items:
-    print(formatter.format(whitespace.sub(" ", repr(obj)),
+    print(formatter.format(truncate(whitespace.sub(" ", repr(obj))),
                            rtype(obj)))
 
 # Recursive size prints
@@ -114,7 +120,7 @@ header("Recursive size.", line_length)
 print(formatter.format("Object", "pympler.asizeof()", "rsize()", "sys.getsizeof()"))
 line(line_length)
 for obj in items:
-    print(formatter.format(whitespace.sub(" ", repr(obj)),
+    print(formatter.format(truncate(whitespace.sub(" ", repr(obj))),
                            asizeof(obj),
                            rsize(obj),
                            sys.getsizeof(obj)))
@@ -135,16 +141,24 @@ obj1 = [1, [2, 3, a]]
 obj2 = [4, a, 5, b]
 obj3 = (10, 11, (b, 12))
 
+# Names of objects to process
+names = ["obj1", "obj2", "obj3", "long_list", "looper1", "cont_looper1"]
+
+# Objects
+objects = [eval(val) for val in names]
+
 # Determine size overlap of objects
-results = rsize_overlap(obj1, obj2, obj3)
+results = rsize_overlap(*objects)
 
 # Determine sizes of shared objects
 ab_sizes = rsize_overlap(a, b).diagonal()
 
+
+
 # Dataframe
 frame = pd.DataFrame(results,
-                     index=["obj1", "obj2", "obj3"],
-                     columns=["obj1", "obj2", "obj3"])
+                     index=names,
+                     columns=names)
 
 print("Object and shared memory consumption:")
 print(frame)
@@ -157,3 +171,5 @@ print(formatter.format(name="a",
 print(formatter.format(name="b",
                        objs="obj2 and obj3",
                        size=int(ab_sizes[1])))
+print("Object 'cont_looper1' contains 'looper1'")
+print("Object 'cont_looper1' shares integers with other objects")

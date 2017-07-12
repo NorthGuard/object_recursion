@@ -48,6 +48,8 @@ On the left there is the string-representation of each object as returned by `re
 recursive type returned by `rtype(obj)`.
 
 ```
+Object                                            : rtype()
+---------------------------------------------------------------------------
 1                                                 : int
 2.3                                               : float
 None                                              : None
@@ -62,12 +64,14 @@ False                                             : bool
 [(1, 'a'), (2, 'b')]                              : list[tuple[int,str]]
 {1: 'b', 2: 'c'}                                  : dict[int: str]
 {1: 'b', 2: None}                                 : dict[int: None|str]
-[<__main__.Foo object at 0x000001F392809E48>]     : list[Foo]
-[<function bar at 0x000001F390230D90>]            : list[bar()]
+[<__main__.Foo object at 0x7fdad17f8a90>]         : list[Foo]
+[<function bar at 0x7fdae8cebe18>]                : list[bar()]
 Bob(a=1, b=2, c=3)                                : Bob[int,int,int]
-array([1, 2, 3])                                  : np.1darray[int32]
-array([['1', 'b'], ['3', '4']], dtype='<U11')     : np.2darray[str]
-<__main__.Looper object at 0x000001F390DA0D68>    : Looper
+array([1, 2, 3])                                  : ndarray
+array([['1', 'b'], ['3', '4']], dtype='<U21')     : ndarray
+<__main__.Looper object at 0x7fdae8ccaeb8>        : Looper
+[1, [4, [2, [...]]], <__main__.Looper object  ..  : list[Looper|list[int|list[..]]|int]
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, ..  : list[int]
 ```
 
 
@@ -133,28 +137,30 @@ The test-script will produce the following output, comparing the method to `sys.
 The left-most column contains `repr(obj)` of each object. `rsize()` tends to hold a middle ground of the three methods. 
 
 ```
-Object                                            : pympler.asizeof()  : rsize()     : sys.getsizeof()
+Object                                            : pympler.asizeof()  : rsize()     : sys.getsizeof()    
 ---------------------------------------------------------------------------------------------------------
-1                                                 : 32                 : 28          : 28
-2.3                                               : 24                 : 24          : 24
-None                                              : 16                 : 16          : 16
-False                                             : 24                 : 24          : 24
-'hello'                                           : 56                 : 54          : 54
-[1, 2, 3]                                         : 184                : 172         : 88
-['a', 'b']                                        : 192                : 188         : 80
-[1, 'h']                                          : 168                : 162         : 80
-(False, 1, '2')                                   : 184                : 178         : 72
-{1.2, 2.3, 3.4}                                   : 296                : 296         : 224
-[[1, 2, 3], [4, 5, 6], [7, 8, 9]]                 : 640                : 604         : 88
-[(1, 'a'), (2, 'b')]                              : 384                : 372         : 80
-{1: 'b', 2: 'c'}                                  : 416                : 404         : 240
-{1: 'b', 2: None}                                 : 376                : 366         : 240
-[<__main__.Foo object at 0x000001F392809E48>]     : 240                : 128         : 72
-[<function bar at 0x000001F390230D90>]            : 72                 : 208         : 72
-Bob(a=1, b=2, c=3)                                : 224                : 156         : 72
-array([1, 2, 3])                                  : 112                : 108         : 108
-array([['1', 'b'], ['3', '4']], dtype='<U11')     : 288                : 288         : 288
-<__main__.Looper object at 0x000001F390DA0D68>    : 224                : 64          : 56
+1                                                 : 32                 : 28          : 28                 
+2.3                                               : 24                 : 24          : 24                 
+None                                              : 16                 : 16          : 16                 
+False                                             : 24                 : 24          : 24                 
+'hello'                                           : 56                 : 54          : 54                 
+[1, 2, 3]                                         : 184                : 172         : 88                 
+['a', 'b']                                        : 208                : 196         : 80                 
+[1, 'h']                                          : 176                : 166         : 80                 
+(False, 1, '2')                                   : 192                : 182         : 72                 
+{1.2, 2.3, 3.4}                                   : 296                : 296         : 224                
+[[1, 2, 3], [4, 5, 6], [7, 8, 9]]                 : 640                : 604         : 88                 
+[(1, 'a'), (2, 'b')]                              : 400                : 380         : 80                 
+{1: 'b', 2: 'c'}                                  : 432                : 240         : 240                
+{1: 'b', 2: None}                                 : 384                : 240         : 240                
+[<__main__.Foo object at 0x7fdad17f8a90>]         : 240                : 128         : 72                 
+[<function bar at 0x7fdae8cebe18>]                : 72                 : 208         : 72                 
+Bob(a=1, b=2, c=3)                                : 224                : 156         : 72                 
+array([1, 2, 3])                                  : 120                : 120         : 120                
+array([['1', 'b'], ['3', '4']], dtype='<U21')     : 448                : 448         : 448                
+<__main__.Looper object at 0x7fdae8ccaeb8>        : 568                : 168         : 56                 
+[1, [4, [2, [...]]], <__main__.Looper object  ..  : 1712               : 3960        : 888                
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, ..  : 896                : 3664        : 864   
 ```
 
 
@@ -168,12 +174,17 @@ Below is an example of the method.
 
 ```
 Object and shared memory consumption:
-       obj1    obj2    obj3
-obj1  464.0   220.0     0.0
-obj2  220.0  4688.0  4332.0
-obj3    0.0  4332.0  4544.0
+               obj1    obj2    obj3  long_list  looper1  cont_looper1
+obj1          464.0   212.0     0.0       28.0      0.0          56.0
+obj2          212.0  1680.0  1316.0        0.0      0.0          28.0
+obj3            0.0  1316.0  1536.0        0.0      0.0           0.0
+long_list      28.0     0.0     0.0     3664.0      0.0          28.0
+looper1         0.0     0.0     0.0        0.0    168.0         168.0
+cont_looper1   56.0    28.0     0.0       28.0    168.0        4016.0
 
 Object 'a' is shared by obj1 and obj2, and consumes 212 Bytes
-Object 'b' is shared by obj2 and obj3, and consumes 4324 Bytes
+Object 'b' is shared by obj2 and obj3, and consumes 1316 Bytes
+Object 'cont_looper1' contains 'looper1'
+Object 'cont_looper1' shares integers with other objects
 ```
 

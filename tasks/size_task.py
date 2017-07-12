@@ -1,4 +1,5 @@
 import sys
+import textwrap
 from collections import namedtuple
 from numbers import Number
 from typing import Tuple, Iterable, Dict, Generator
@@ -15,15 +16,16 @@ def _dprint_indent(string, verbose):
 
 
 class SizeTask(TreeRecursionTask):
+
     # Order of container-types matters!
     @property
     def interests(self):
         return (Tuple,
-                 Dict,
-                 Iterable,
-                 ObjectRecursion.ClassDict,
-                 ObjectRecursion.ClassSlots
-                 )
+                Dict,
+                Iterable,
+                ObjectRecursion.ClassDict,
+                ObjectRecursion.ClassSlots
+                )
 
     def __init__(self, terminate_at=None, word_size=8):
         """
@@ -35,11 +37,14 @@ class SizeTask(TreeRecursionTask):
         super().__init__()
 
         self._object_conclusion = None  # type: dict
-        self._current_path = None  # type: list
         self.pointer_size = word_size
 
+        # Ensure items are not counted twice
+        self._already_counted = None  # type: set
+        self._current_path = None  # type: list
+
         # Termination markers
-        _terminate_at = [str, bool, Number, bytes, range, bytearray, Generator, np.ndarray]
+        _terminate_at = ObjectRecursion.BaseTerminators
         if terminate_at is not None:
             if isinstance(terminate_at, (list, tuple)):
                 _terminate_at += list(terminate_at)
@@ -50,14 +55,41 @@ class SizeTask(TreeRecursionTask):
     def enter_object(self, *, obj, edge, parent, recurser):
         pass
 
+    def intermediate_initialize(self):
+        # Ensure items are not counted twice
+        self._already_counted = set()
+        self._current_path = []
+
     def initialize(self):
         self._object_conclusion = dict()
         self._current_path = []
+        self._already_counted = set()
 
-    def get_conclusion(self, obj_id, recurser=None):
-        if obj_id in self._object_conclusion:
-            return self._object_conclusion[obj_id]
-        return sys.getsizeof(recurser.objects[obj_id])
+    def _note_object_finished(self, *, obj_id, obj, edge, parent, recurser):
+        # Note that this size has been returned
+        self._already_counted.add(obj_id)
+
+    def get_conclusion(self, obj_id, recurser=None, include_pointer=False):
+        # If object has already been observed
+        if obj_id in self._already_counted:
+            size = 0
+
+        # If this objects conclusion has already been computed
+        elif obj_id in self._object_conclusion:
+            size = self._object_conclusion[obj_id]
+
+        # Otherwise estimate size
+        else:
+            size = sys.getsizeof(recurser.objects[obj_id])
+
+        # Add pointer
+        if include_pointer:
+            size += self.pointer_size
+
+        return size
+
+    def get_size(self, obj_id):
+        return self._object_conclusion[obj_id]
 
     def _finish_key_val_pair(self, obj_id, recurser):
         """
@@ -70,9 +102,16 @@ class SizeTask(TreeRecursionTask):
         # Split pair
         key, value = obj
 
-        # Sizes
-        key_size = self._finish_object(obj_id=id(key), edge=Dict, parent=obj_id, recurser=recurser)
-        value_size = self._finish_object(obj_id=id(value), edge=Dict, parent=obj_id, recurser=recurser)
+        # IDs
+        key_id = id(key)
+        value_id = id(value)
+
+        # Sizes (check if used before)
+        key_size = value_size = 0
+        if key_id not in self._already_counted:
+            key_size = self._finish_object(obj_id=key_id, edge=Dict, parent=obj_id, recurser=recurser)
+        if value_id not in self._already_counted:
+            value_size = self._finish_object(obj_id=value_id, edge=Dict, parent=obj_id, recurser=recurser)
 
         # Note object-representation
         self._object_conclusion[obj_id] = (key_size, value_size)
@@ -80,15 +119,34 @@ class SizeTask(TreeRecursionTask):
 
     def _terminate(self, *, obj_id, obj, edge, parent, recurser):
         if isinstance(obj, self._terminate_at):
-            return True, sys.getsizeof(obj)
+            return True, self.get_conclusion(obj_id=obj_id, recurser=recurser)  # sys.getsizeof(obj)
         else:
             return False, None
 
     def _finish_recursion(self, *, obj_id, obj, edge, parent, recurser):
-        return sys.getsizeof(obj) + self.pointer_size
+        include_pointer = self._include_poiner(parent=parent, edge=edge)
+
+        # Return conclusion
+        return self.get_conclusion(obj_id=obj_id, recurser=recurser, include_pointer=include_pointer)
+
+    def _include_poiner(self, *, parent, edge):
+        # Include pointer if object is found by reference
+        include_pointer = True
+        if parent is None:
+            # Top objects pointer is not relevant
+            include_pointer = False
+        if edge == Iterable:
+            # Iterables pointers are already included
+            include_pointer = False
+
+        # Pointers deactivated, because is seems like sys.getsizeof() always includes pointers.
+        return False
 
     def _non_terminate(self, *, obj_id, obj, edge, parent, recurser):
-        size = sys.getsizeof(obj)
+        include_pointer = self._include_poiner(parent=parent, edge=edge)
+
+        # Return conclusion
+        size = self.get_conclusion(obj_id=obj_id, recurser=recurser, include_pointer=include_pointer)
 
         # Dictionaries - add size of keys and values
         if isinstance(obj, Dict):
@@ -101,7 +159,7 @@ class SizeTask(TreeRecursionTask):
                 key_sizes, value_sizes = inside_objects
 
                 # Add
-                size += sum(key_sizes) + sum(value_sizes)
+                size += int(sum(key_sizes) + sum(value_sizes))
 
         # If object is iterable - go through contained objects
         elif isinstance(obj, Iterable):
@@ -109,8 +167,8 @@ class SizeTask(TreeRecursionTask):
                 inside_objects = recurser.container_children[obj_id]
 
                 # Finish insides and compute size
-                size += sum([self._finish_object(obj_id=child, edge=Iterable, parent=obj_id, recurser=recurser)
-                             for child in inside_objects])
+                size += int(sum([self._finish_object(obj_id=child, edge=Iterable, parent=obj_id, recurser=recurser)
+                                 for child in inside_objects]))
 
         # Custom objects
         # Attribute dictionary
@@ -119,14 +177,15 @@ class SizeTask(TreeRecursionTask):
                 referenced_objects = recurser.reference_children[obj_id]
                 the_edge = ObjectRecursion.ClassDict
 
-                size += sum([self._finish_object(obj_id=child, edge=the_edge, parent=obj_id, recurser=recurser)
-                             for child in referenced_objects])
+                size += int(sum([self._finish_object(obj_id=child, edge=the_edge, parent=obj_id, recurser=recurser)
+                                 for child in referenced_objects]))
 
         return size
 
 
 if __name__ == "__main__":
     import re
+
     try:
         from pympler.asizeof import asizeof
     except ImportError:
@@ -139,6 +198,7 @@ if __name__ == "__main__":
     # Recursion object
     size_checker = SizeTask()
     recurser = ObjectRecursion(tasks=[size_checker])
+
 
     # Example classes and types
     class Foo(object):
@@ -153,19 +213,23 @@ if __name__ == "__main__":
         def __init__(self):
             self.a = None
 
-    looper = Looper()
-    looper.a = looper
-
     bob = namedtuple("Bob", "a, b, c")
     array = np.array([1, 2, 3])
     array2 = np.array([[1, "b"], [3, 4]])
 
     formatter = "{!s: <50}: {!s: <17}: {!s: <17}: {!s: <17}"
 
-    container_looper1 = [1, 2]
-    container_looper2 = [2, container_looper1]
-    container_looper3 = [3, container_looper2]
-    container_looper1[1] = container_looper3
+    looper1 = Looper()
+    looper2 = Looper()
+    looper3 = Looper()
+    looper1.a = looper2
+    looper2.a = looper3
+    looper3.a = looper1
+
+    cont_looper1 = [1, 2, looper2] + [1] * 100
+    cont_looper2 = [2, cont_looper1]
+    cont_looper3 = [4, cont_looper2]
+    cont_looper1[1] = cont_looper3
 
     items = [
         1,
@@ -173,6 +237,7 @@ if __name__ == "__main__":
         None,
         False,
         "hello",
+        [],
         [1, 2, 3],
         ["a", "b"],
         [1, "h"],
@@ -189,14 +254,22 @@ if __name__ == "__main__":
         bob(1, 2, 3),
         array,
         array2,
-        looper,
-        container_looper1
+        looper1,
+        cont_looper1,
+        [1] * 100,
+        {val: 1 for val in range(100)}
     ]
+
+    def truncate(string, length=45):
+        return string[:length] + (string[length:] and ' ..')
 
     print(formatter.format("Object", "asizeof()", "recurser-system", "sys.getsizeof()"))
     print("-" * 105)
     for obj in items:
-        print(formatter.format(whitespace.sub(" ", repr(obj)),
-                               asizeof(obj),
-                               recurser.recurse(obj)[0][0],
-                               sys.getsizeof(obj)))
+        print(
+            formatter.format(truncate(whitespace.sub(" ", repr(obj))),
+                             asizeof(obj),
+                             recurser.recurse(obj)[0][0],
+                             sys.getsizeof(obj))
+        )
+

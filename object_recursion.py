@@ -18,7 +18,7 @@ class ObjectRecursion:
                       Iterable)
     ClassDict = "__dict__"
     ClassSlots = "__slots__"
-    BaseTerminators = [str, bool, Number, bytes, range, bytearray, Generator, np.ndarray]
+    BaseTerminators = [str, bool, Number, bytes, range, bytearray, Generator, np.ndarray, type(None)]
 
     def __init__(self, tasks, container_sampling=None, terminate_at=None):
         # Check tasks
@@ -33,7 +33,6 @@ class ObjectRecursion:
             else:
                 _terminate_at.append(terminate_at)
         self._terminate_at = tuple(set(_terminate_at))
-
 
         # Fields
         self.container_children = None  # type: dict
@@ -195,6 +194,15 @@ class ObjectRecursion:
         # Get reference ids
         reference_ids = [id(val) for val in references]
         self.reference_children[obj_id] = reference_ids
+        assert len(references) == len(reference_ids) == len(reference_types)
+
+        # Note object existence
+        # TODO: Replace with self.objects.update() statement
+        for child, child_id in zip(references, reference_ids):
+
+            # Note existence
+            if child_id not in self.objects:
+                self.objects[child_id] = child
 
         # Recurse
         for child, child_id, reference_type in zip(references, reference_ids, reference_types):

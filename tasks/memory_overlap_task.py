@@ -7,37 +7,43 @@ from object_recursion.object_recursion import ObjectRecursion
 from object_recursion.task_base import WrapUpTask
 
 
-def _flatten_trees(obj_id, trees, visited=None):
-    """
-    :param [dict] trees:
-    :param int obj_id:
-    :param set | None visited:
-    :return:
-    """
-    if visited is None:
-        visited = set()
-
-    # Get children
-    children = set()
-    for tree in trees:
-        if obj_id in tree:
-            children.update(tree[obj_id])
-
-    # Update visited with children
-    visited.update(children)
-
-    # Go through children
-    descendants = visited
-    for child in children:
-        descendants.update(_flatten_trees(child, trees, visited=visited))
-
-    # Return
-    return descendants
-
-
 class SizeComparisonTask(WrapUpTask):
     def __init__(self, terminate_at=None, word_size=8):
         super().__init__([SizeTask(terminate_at=terminate_at, word_size=word_size)])
+
+    def _flatten_trees(self, obj_id, trees, visited=None):
+        """
+        :param [dict] trees:
+        :param int obj_id:
+        :param set | None visited:
+        :return:
+        """
+        if visited is None:
+            visited = set()
+
+        # Get children
+        children = set()
+        for tree in trees:
+            if obj_id in tree:
+                children.update(tree[obj_id])
+
+        # Go through children
+        for child in children:
+            if child not in visited:
+                visited.add(child)
+                visited.update(self._flatten_trees(child, trees, visited=visited))
+
+        # Return
+        return visited
+
+    def get_size(self, obj_id, size_task):
+        size = size_task.get_size(obj_id)
+
+        # Check if size is a size-tuple (fx key-value-pair sizes)
+        if isinstance(size, tuple):
+            size = sum(size)
+
+        return size
 
     def wrap_up(self, recurser, *args):
         """
@@ -64,10 +70,12 @@ class SizeComparisonTask(WrapUpTask):
         # Flatten trees under each object
         descendants = dict()
         for obj_id in obj_ids:
-            descendants[obj_id] = _flatten_trees(obj_id, trees, visited=None)
+            descendants[obj_id] = self._flatten_trees(obj_id, trees, visited=None)
 
         # Actual sizes
-        actual_sizes = [size_task.get_conclusion(obj_id, recurser=recurser) for obj_id in obj_ids]
+        actual_sizes = []
+        for obj_id in obj_ids:
+            actual_sizes.append(self.get_size(obj_id=obj_id, size_task=size_task))
 
         # Compute overlap in sizes
         for obj1_nr, obj2_nr in product(range(n_objects), range(n_objects)):
@@ -84,13 +92,11 @@ class SizeComparisonTask(WrapUpTask):
 
             # Remove objects contained in other objects (to avoid counting objects twice)
             pruning = True
-            objects_to_check = list(shared)
             while pruning:
                 pruning = False
 
                 # Get all children of each object and remove from shared
-                while objects_to_check:
-                    obj_id = objects_to_check.pop()
+                for obj_id in shared:
 
                     # Get children
                     children = set()
@@ -102,13 +108,22 @@ class SizeComparisonTask(WrapUpTask):
                     # Avoid removing self
                     children.difference_update([obj_id])
 
-                    # Get only children in shared
-                    shared.difference_update(children)
+                    # Get objects to remove
+                    for_removal = shared.intersection(children)
+
+                    # Check if any objects are to be removed
+                    if for_removal:
+                        # Get only children in shared
+                        shared.difference_update(for_removal)
+
+                        # Still pruning
+                        pruning = True
+                        break
 
             # Shared size
             shared_size = 0
             for obj_id in shared:
-                shared_size += size_task.get_conclusion(obj_id, recurser=recurser)
+                shared_size += self.get_size(obj_id=obj_id, size_task=size_task)
 
             # Store in matrix
             m_sizes[obj1_nr, obj2_nr] = shared_size
@@ -131,14 +146,41 @@ if __name__ == "__main__":
     obj2 = [4, a, 5, b]
     obj3 = (10, 11, (b, 12))
 
+    class Looper:
+        def __init__(self):
+            self.a = None
+
+    looper1 = Looper()
+    looper2 = Looper()
+    looper3 = Looper()
+    looper1.a = looper2
+    looper2.a = looper3
+    looper3.a = looper1
+
+    long_list = [1] * 100
+
+    cont_looper1 = [1, 2, looper2] + long_list
+    cont_looper2 = [2, cont_looper1]
+    cont_looper3 = [4, cont_looper2]
+    cont_looper1[1] = cont_looper3
+
+    # #####################################################################
+
+    names = ["obj1", "obj2", "obj3", "long_list", "looper1", "cont_looper1"]
+
+    # Objects
+    objects = [eval(val) for val in names]
+
     # Determine size overlap of objects
-    results = recurser.recurse(obj1, obj2, obj3)[0]
+    results = recurser.recurse(
+        *objects
+    )[0]
 
     # Determine sizes of shared objects
     ab_sizes = recurser.recurse(a, b)[0].diagonal()
 
     # Dataframe
-    frame = pd.DataFrame(results, index=["obj1", "obj2", "obj3"], columns=["obj1", "obj2", "obj3"])
+    frame = pd.DataFrame(results, index=names, columns=names)
 
     print("Object and shared memory consumption:")
     print(frame)
@@ -151,3 +193,5 @@ if __name__ == "__main__":
     print(formatter.format(name="b",
                            objs="obj2 and obj3",
                            size=int(ab_sizes[1])))
+    print("Object 'cont_looper1' contains 'looper1'")
+    print("Object 'cont_looper1' shares integers with other objects")
