@@ -6,18 +6,18 @@ This system recurse through objects' references to perform various computations.
 So far the system is capable of:
 - Recursively print the type of an object and contained objects.  
     Ex. `rtype([(1, 'a'), (2, 'b')])` will product a string with: `list[tuple[int,str]]`.  
-    See [Type Recursive](##TypeRecursive).
+    See [Type Recursive](#type-recursive).
 - Print a recursive-tree of cotnained objects.  
     Used mostly for observing the functionality of the system.  
-    See [Recursive Container Tree String](##RecursiveContainerTreeString).
+    See [Recursive Container Tree String](#recursive-container-tree-string).
 - Compute the approximate memory consumption of an object and all objects referenced to by the object.  
     Objects references to multiple times does not count multiple times in the memory-consumption (just a reference).  
-    See [Size Recursive](##SizeRecursive).
+    See [Size Recursive](#size-recursive).
 - Compute the memory overlap of multiple objects.  
     Given multiple objects, the method will produce a matrix.  
     The diagonal elements are the sizes of each object.  
     The non-diagonal elements are the memory overlap of the objects in the related row and the column.  
-    See [Size Overlap](##SizeOverlap). 
+    See [Size Overlap](#size-overlap). 
 
 Run `python -m object_recursion` for a test of all parts of the system.
 
