@@ -3,10 +3,12 @@ from typing import Tuple, Dict, Iterable
 
 import numpy as np
 
-from object_recursion.object_recursion import ObjectRecursion, RecursionTask
+from object_recursion.object_recursion import ObjectRecursion
+from object_recursion.task_base import TreeRecursionTask
 
 
-class ContainerTreePrintTask(RecursionTask):
+class ContainerTreePrintTask(TreeRecursionTask):
+
     @property
     def interests(self):
         return (Tuple,
@@ -19,28 +21,33 @@ class ContainerTreePrintTask(RecursionTask):
         super().__init__()
         self.whitespace = re.compile("[\s\n]+")
         self._object_conclusion = None
-        self.depths = None
 
     def initialize(self):
+        self._current_path = []
         self._object_conclusion = dict()
-        self.depths = dict()
 
-    def _finish_container(self, obj_id, depth, recurser):
-        """
-        Finish the task on the object, using information about all children.
-        :param int obj_id: ID of object
-        :param int depth: Depth in tree
-        :param ObjectRecursion recurser:
-        :return:
-        """
-        # Check if already processed
-        if obj_id in self._object_conclusion:
-            return self._object_conclusion[obj_id]
-
-        # Print me
+    def _produce_name(self, obj_id, recurser):
+        if obj_id in recurser.container_root_path:
+            depth = recurser.container_root_path.index(obj_id)
+        else:
+            depth = len(recurser.container_root_path)
         string = "  " * depth + self.whitespace.sub(" ", repr(recurser.objects[obj_id]))
+        return string
 
-        # Print insides
+    def _terminate(self, *, obj_id, obj, edge, parent, recurser):
+        if isinstance(obj, tuple(ObjectRecursion.BaseTerminators)):
+            return True, self._produce_name(obj_id=obj_id, recurser=recurser)
+        return False, None
+
+    def _finish_recursion(self, *, obj_id, obj, edge, parent, recurser):
+        return self._produce_name(obj_id=obj_id, recurser=recurser)
+
+    def _non_terminate(self, *, obj_id, obj, edge, parent, recurser):
+
+        # String
+        string = self._produce_name(obj_id=obj_id, recurser=recurser)
+
+        # Process insides
         if obj_id in recurser.container_children and len(recurser.container_children[obj_id]) > 0:
             inside_objects = recurser.container_children[obj_id]
 
@@ -49,19 +56,7 @@ class ContainerTreePrintTask(RecursionTask):
 
         return string
 
-    def _finish_object(self, *, obj_id, edge, parent, recurser):
-        """
-        Finish the task on the object, using information about all children.
-        :param int obj_id: ID of object
-        :param ObjectRecursion recurser: Recursive search system.
-        :return:
-        """
-        self.depths[obj_id] = len(recurser.container_root_path)
-        result = self._finish_container(obj_id=obj_id, depth=len(recurser.container_root_path), recurser=recurser)
-        self._object_conclusion[obj_id] = result
-        return result
-
-    def enter_object(self, obj, edge, parent, recurser):
+    def enter_object(self, *, obj, edge, parent, recurser):
         pass
 
 
@@ -69,8 +64,14 @@ if __name__ == "__main__":
 
     obj = [1, [2, 3, ((4, 5), 7)]]
 
+    container_looper1 = [1, 2]
+    container_looper2 = [2, container_looper1]
+    container_looper3 = [3, container_looper2]
+    container_looper1[1] = container_looper3
+
     # Recursion object
     tree_task = ContainerTreePrintTask()
     the_recurser = ObjectRecursion(tasks=[tree_task])
 
-    print(the_recurser.recurse(obj)[0][0])
+    print(the_recurser.recurse(obj)[0][0], "\n")
+    print(the_recurser.recurse(container_looper1)[0][0])

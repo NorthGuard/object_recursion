@@ -4,13 +4,14 @@ from typing import Tuple, Dict, Iterable, Callable
 
 import numpy as np
 
-from object_recursion.object_recursion import ObjectRecursion, RecursionTask
+from object_recursion.object_recursion import ObjectRecursion
+from object_recursion.task_base import TreeRecursionTask
 
 
 # TODO: Do time-comparison between rtype and ContainerTreePrintTask/ObjectRecurser
 
 
-class TypeCheckTask(RecursionTask):
+class TypeCheckTask(TreeRecursionTask):
     @property
     def interests(self):
         return (Tuple,
@@ -39,6 +40,7 @@ class TypeCheckTask(RecursionTask):
 
     def initialize(self):
         self._object_conclusion = dict()
+        self._current_path = []
 
     @staticmethod
     def _delimiter_types(delimiter="["):
@@ -170,54 +172,49 @@ class TypeCheckTask(RecursionTask):
         # Final string
         return obj_name + inside
 
-    def _finish_object(self, *, obj_id, edge, parent, recurser):
-        """
-        Finish the task on the object, using information about all children.
-        :param int obj_id: ID of object
-        :param ObjectRecursion recurser: Recursive search system.
-        :return:
-        """
-        # Check if already noted
-        if obj_id in self._object_conclusion:
-            return self._object_conclusion[obj_id]
+    def _finish_recursion(self, *, obj_id, obj, edge, parent, recurser):
+        # Extract name
+        obj_name = self._extract_name(obj)
 
-        # Get info
-        if obj_id not in recurser.objects:
-            pass
-        obj = recurser.objects[obj_id]
-        obj_name = "None" if obj is None else type(obj).__name__
+        return obj_name + self.l + ".." + self.r
 
-        # Simple types
+    @staticmethod
+    def _extract_name(obj):
+        return "None" if obj is None else type(obj).__name__
+
+    def _terminate(self, *, obj_id, obj, edge, parent, recurser):
         if isinstance(obj, (str, bool, Number, int, float, complex)):
-            representation = obj_name
+            return True, self._extract_name(obj=obj)
+        else:
+            return False, None
+
+    def _non_terminate(self, *, obj_id, obj, edge, parent, recurser):
+        # Extract name
+        obj_name = self._extract_name(obj)
+
+        # Objects with direct representation
+        if isinstance(obj, Callable):
+            conclusion = "{}()".format(obj.__name__)
+
+        # Unknown container
+        elif obj_id not in recurser.container_children:
+            conclusion = obj_name
 
         # Containers
+        elif isinstance(obj, Tuple):
+            conclusion = self._finish_tuple(obj_id=obj_id, obj_name=obj_name, recurser=recurser)
+        elif isinstance(obj, Dict):
+            conclusion = self._finish_dict(obj_id=obj_id, obj_name=obj_name, recurser=recurser)
+        elif isinstance(obj, np.ndarray):
+            conclusion = self._finish_numpy(obj_id=obj_id, obj_name=obj_name, recurser=recurser)
+        elif isinstance(obj, Iterable):
+            conclusion = self._finish_iterable(obj_id=obj_id, obj_name=obj_name, recurser=recurser)
+
+        # Everything else
         else:
-            # Objects with direct representation
-            if isinstance(obj, Callable):
-                representation = "{}()".format(obj.__name__)
+            conclusion = obj_name
 
-            # Unknown container
-            elif obj_id not in recurser.container_children:
-                representation = obj_name
-
-            # Containers
-            elif isinstance(obj, Tuple):
-                representation = self._finish_tuple(obj_id=obj_id, obj_name=obj_name, recurser=recurser)
-            elif isinstance(obj, Dict):
-                representation = self._finish_dict(obj_id=obj_id, obj_name=obj_name, recurser=recurser)
-            elif isinstance(obj, np.ndarray):
-                representation = self._finish_numpy(obj_id=obj_id, obj_name=obj_name, recurser=recurser)
-            elif isinstance(obj, Iterable):
-                representation = self._finish_iterable(obj_id=obj_id, obj_name=obj_name, recurser=recurser)
-
-            # Everything else
-            else:
-                representation = obj_name
-
-        # Note object-representation
-        self._object_conclusion[obj_id] = representation
-        return self._object_conclusion[obj_id]
+        return conclusion
 
 
 if __name__ == "__main__":
@@ -246,6 +243,11 @@ if __name__ == "__main__":
 
     formatter = "{!s: <50}: {!s}"
 
+    container_looper1 = [1, 2]
+    container_looper2 = [2, container_looper1]
+    container_looper3 = [3, container_looper2]
+    container_looper1[1] = container_looper3
+
     items = [
         1,
         2.3,
@@ -265,7 +267,8 @@ if __name__ == "__main__":
         [bar],
         bob(1, 2, 3),
         array,
-        array2
+        array2,
+        container_looper1
     ]
 
     print(formatter.format("Object", "recurser-system"))

@@ -74,5 +74,5 @@ def rsize_overlap(*args, terminate_at=None, word_size=8):
     :return: np.ndarray
     """
     comparison_task = SizeComparisonTask(terminate_at=terminate_at, word_size=word_size)
-    recurser = ObjectRecursion(tasks=[comparison_task])
+    recurser = ObjectRecursion(tasks=[comparison_task], terminate_at=terminate_at)
     return recurser.recurse(*args)[0]

@@ -53,8 +53,17 @@ class Looper:
     def __init__(self):
         self.a = None
 
-looper = Looper()
-looper.a = looper
+looper1 = Looper()
+looper2 = Looper()
+looper3 = Looper()
+looper1.a = looper2
+looper2.a = looper3
+looper3.a = looper1
+
+container_looper1 = [0, 1, 2, 3]
+container_looper2 = [0, 1, container_looper1, 3]
+container_looper3 = [0, 1, container_looper2, 3]
+container_looper1[2] = container_looper3
 
 bob = namedtuple("Bob", "a, b, c")
 array = np.array([1, 2, 3])
@@ -80,7 +89,8 @@ items = [
     bob(1, 2, 3),
     array,
     array2,
-    looper
+    looper1,
+    container_looper1
 ]
 
 # Recursive type prints

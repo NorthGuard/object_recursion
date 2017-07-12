@@ -5,7 +5,8 @@ from typing import Tuple, Iterable, Dict, Generator
 
 import numpy as np
 
-from object_recursion.object_recursion import ObjectRecursion, RecursionTask
+from object_recursion.object_recursion import ObjectRecursion
+from object_recursion.task_base import TreeRecursionTask
 
 
 def _dprint_indent(string, verbose):
@@ -13,7 +14,7 @@ def _dprint_indent(string, verbose):
         print("  " * verbose + string)
 
 
-class SizeTask(RecursionTask):
+class SizeTask(TreeRecursionTask):
     # Order of container-types matters!
     @property
     def interests(self):
@@ -77,29 +78,17 @@ class SizeTask(RecursionTask):
         self._object_conclusion[obj_id] = (key_size, value_size)
         return key_size, value_size
 
-    def _finish_object(self, *, obj_id, edge, parent, recurser):
-        """
-        Finish the task on the object, using information about all children.
-        :param int obj_id: ID of object
-        :param ObjectRecursion recurser: Recursive search system.
-        """
-        # Check if already noted
-        if obj_id in self._object_conclusion:
-            return self._object_conclusion[obj_id]
-
-        # Get info
-        obj = recurser.objects[obj_id]
-        obj_size = sys.getsizeof(obj)
-
-        # Size of object
-        size = obj_size
-
-        # Check termination
+    def _terminate(self, *, obj_id, obj, edge, parent, recurser):
         if isinstance(obj, self._terminate_at):
-            return size
+            return True, sys.getsizeof(obj)
+        else:
+            return False, None
 
-        # Note on path (reference-loop avoidance)
-        self._current_path.append(obj_id)
+    def _finish_recursion(self, *, obj_id, obj, edge, parent, recurser):
+        return sys.getsizeof(obj) + self.pointer_size
+
+    def _non_terminate(self, *, obj_id, obj, edge, parent, recurser):
+        size = sys.getsizeof(obj)
 
         # Dictionaries - add size of keys and values
         if isinstance(obj, Dict):
@@ -128,24 +117,12 @@ class SizeTask(RecursionTask):
         if obj_id in recurser.reference_children:
             if len(recurser.reference_children[obj_id]) > 0:
                 referenced_objects = recurser.reference_children[obj_id]
+                the_edge = ObjectRecursion.ClassDict
 
-                # Count number of looped references (reference-loop avoidance)
-                loop_count = len([1 for val in referenced_objects
-                                  if val in self._current_path])
-                non_loop_referenced_objects = [val for val in referenced_objects
-                                               if val not in self._current_path]
+                size += sum([self._finish_object(obj_id=child, edge=the_edge, parent=obj_id, recurser=recurser)
+                             for child in referenced_objects])
 
-                # Finish references and compute size
-                size += sum([self._finish_object(obj_id=child, edge=ObjectRecursion.ClassDict, parent=obj_id,
-                                                 recurser=recurser)
-                             for child in non_loop_referenced_objects]) + self.pointer_size * loop_count
-
-        # Remove from path (reference-loop avoidance)
-        self._current_path.pop()
-
-        # Note object-size
-        self._object_conclusion[obj_id] = size
-        return self._object_conclusion[obj_id]
+        return size
 
 
 if __name__ == "__main__":
@@ -185,6 +162,11 @@ if __name__ == "__main__":
 
     formatter = "{!s: <50}: {!s: <17}: {!s: <17}: {!s: <17}"
 
+    container_looper1 = [1, 2]
+    container_looper2 = [2, container_looper1]
+    container_looper3 = [3, container_looper2]
+    container_looper1[1] = container_looper3
+
     items = [
         1,
         2.3,
@@ -207,7 +189,8 @@ if __name__ == "__main__":
         bob(1, 2, 3),
         array,
         array2,
-        looper
+        looper,
+        container_looper1
     ]
 
     print(formatter.format("Object", "asizeof()", "recurser-system", "sys.getsizeof()"))

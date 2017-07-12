@@ -3,7 +3,8 @@ from itertools import product
 import numpy as np
 from object_recursion.tasks import SizeTask
 
-from object_recursion.object_recursion import ObjectRecursion, WrapUpTask
+from object_recursion.object_recursion import ObjectRecursion
+from object_recursion.task_base import WrapUpTask
 
 
 def _flatten_trees(obj_id, trees, visited=None):
@@ -107,7 +108,7 @@ class SizeComparisonTask(WrapUpTask):
             # Shared size
             shared_size = 0
             for obj_id in shared:
-                shared_size += size_task.get_conclusion(obj_id, recurser=recurser) + size_task.pointer_size
+                shared_size += size_task.get_conclusion(obj_id, recurser=recurser)
 
             # Store in matrix
             m_sizes[obj1_nr, obj2_nr] = shared_size

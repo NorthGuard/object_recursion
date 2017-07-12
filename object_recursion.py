@@ -1,104 +1,13 @@
 import random
 from numbers import Number
-from typing import Tuple, Iterable, Dict
+from typing import Tuple, Iterable, Dict, Generator
+from object_recursion.task_base import RecursionTask
 
 import numpy as np
 
 
 # TODO: Perhaps make a verbosity system
 # TODO: Make the recursion able to also: determine memory consumption, determine reference overlap (and memory overlap)
-
-
-class RecursionTask:
-    def __init__(self):
-        self._object_conclusion = None
-
-    @property
-    def interests(self):
-        raise NotImplementedError
-
-    def initialize(self):
-        """
-        Initializes the task before running any recursions.
-        """
-        raise NotImplementedError
-
-    def get_conclusion(self, obj_id, recurser=None):
-        return self._object_conclusion[obj_id]
-
-    def intermediate_initialize(self):
-        """
-        Initializes the task between recursing on two objects.
-        """
-        pass
-
-    def enter_object(self, *, obj, edge, parent, recurser):
-        """
-        An object is now being visited.
-        :param obj:
-        :param edge:
-        :param parent:
-        :param ObjectRecursion recurser:
-        """
-        raise NotImplementedError
-
-    def result(self, obj_id, recurser):
-        """
-        Get result of task on object.
-        :param int obj_id:
-        :param ObjectRecursion recurser:
-        """
-        return self._finish_object(obj_id=obj_id, edge=None, parent=None, recurser=recurser)
-
-    def finish_object(self, *, obj_id, edge, parent, recurser):
-        if edge in self.interests:
-            return self._finish_object(obj_id=obj_id, edge=edge, parent=parent, recurser=recurser)
-
-    def _finish_object(self, *, obj_id, edge, parent, recurser):
-        """
-        Finish the task on the object, using information about all children.
-        :param int obj_id: ID of object
-        :param ObjectRecursion recurser: Recursive search system.
-        """
-        raise NotImplementedError
-
-    def wrap_up(self, recurser, *args):
-        results = []
-        for obj_id in args:
-            results.append(self.result(obj_id, recurser=recurser))
-        return results
-
-
-class WrapUpTask(RecursionTask):
-    @property
-    def interests(self):
-        interests = set()
-        for task in self.tasks:  # type: RecursionTask
-            interests.update(set(task.interests))
-        return interests
-
-    def __init__(self, tasks):
-        super().__init__()
-        self.tasks = tasks  # type: [RecursionTask]
-
-    def intermediate_initialize(self):
-        for task in self.tasks:  # type: RecursionTask
-            task.intermediate_initialize()
-
-    def enter_object(self, *, obj, edge, parent, recurser):
-        for task in self.tasks:  # type: RecursionTask
-            task.enter_object(obj=obj, edge=edge, parent=parent, recurser=recurser)
-
-    def _finish_object(self, *, obj_id, edge, parent, recurser):
-        for task in self.tasks:  # type: RecursionTask
-            task._finish_object(obj_id=obj_id, edge=edge, parent=parent, recurser=recurser)
-
-    def initialize(self):
-        for task in self.tasks:  # type: RecursionTask
-            task.initialize()
-
-    def wrap_up(self, recurser, *args):
-        raise NotImplementedError
 
 
 class ObjectRecursion:
@@ -109,13 +18,22 @@ class ObjectRecursion:
                       Iterable)
     ClassDict = "__dict__"
     ClassSlots = "__slots__"
+    BaseTerminators = [str, bool, Number, bytes, range, bytearray, Generator, np.ndarray]
 
     def __init__(self, tasks, container_sampling=None, terminate_at=None):
-        # Defaults
-        if terminate_at is None:
-            terminate_at = (Number, str)
+        # Check tasks
         if tasks is None:
             raise ValueError("tasks can not be None.")
+
+        # Termination markers
+        _terminate_at = ObjectRecursion.BaseTerminators
+        if terminate_at is not None:
+            if isinstance(terminate_at, (list, tuple)):
+                _terminate_at += list(terminate_at)
+            else:
+                _terminate_at.append(terminate_at)
+        self._terminate_at = tuple(set(_terminate_at))
+
 
         # Fields
         self.container_children = None  # type: dict
@@ -125,7 +43,6 @@ class ObjectRecursion:
         self.objects = None  # type: dict
 
         # Store
-        self._terminate_at = terminate_at
         self._tasks = tasks  # type: [RecursionTask]
         self._sampling = container_sampling
 
@@ -250,7 +167,10 @@ class ObjectRecursion:
         for sample_id in sample_ids:
             child = insides[sample_id]
             child_id = inside_ids[sample_id]
-            self._recurse(obj=child, edge=a_type, parent=obj, obj_id=child_id)
+
+            # Don't consider handled objects (avoid loops)
+            if child_id not in self.container_children:
+                self._recurse(obj=child, edge=a_type, parent=obj, obj_id=child_id)
 
     def _recurse_reference(self, *, obj, obj_id):
         references = []
