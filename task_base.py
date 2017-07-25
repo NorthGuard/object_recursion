@@ -75,13 +75,13 @@ class TreeRecursionTask(RecursionTask):
     def interests(self):
         raise NotImplementedError
 
-    def _finish_recursion(self, *, obj_id, obj, edge, parent, recurser):
+    def _stop_recursion_conclusion(self, *, obj_id, obj, edge, parent, recurser):
         raise NotImplementedError
 
-    def _terminate(self, *, obj_id, obj, edge, parent, recurser):
+    def _termination_conclusion(self, *, obj_id, obj, edge, parent, recurser):
         raise NotImplementedError
 
-    def _non_terminate(self, *, obj_id, obj, edge, parent, recurser):
+    def _non_termination_conclusion(self, *, obj_id, obj, edge, parent, recurser):
         raise NotImplementedError
 
     def _note_object_finished(self, *, obj_id, obj, edge, parent, recurser):
@@ -111,11 +111,11 @@ class TreeRecursionTask(RecursionTask):
             raise e
 
         # Termination
-        terminate_bool, terminate_return = self._terminate(obj_id=obj_id,
-                                                           obj=obj,
-                                                           edge=edge,
-                                                           parent=parent,
-                                                           recurser=recurser)
+        terminate_bool, terminate_return = self._termination_conclusion(obj_id=obj_id,
+                                                                        obj=obj,
+                                                                        edge=edge,
+                                                                        parent=parent,
+                                                                        recurser=recurser)
         if terminate_bool:
             conclusion = terminate_return
 
@@ -124,22 +124,22 @@ class TreeRecursionTask(RecursionTask):
 
             # Loop reference
             if obj_id in self._current_path:
-                conclusion = self._finish_recursion(obj_id=obj_id,
-                                                    obj=obj,
-                                                    edge=edge,
-                                                    parent=parent,
-                                                    recurser=recurser)
+                conclusion = self._stop_recursion_conclusion(obj_id=obj_id,
+                                                             obj=obj,
+                                                             edge=edge,
+                                                             parent=parent,
+                                                             recurser=recurser)
 
             # Non-terminate object
             else:
                 # Note on path (reference-loop avoidance)
                 self._current_path.append(obj_id)
 
-                conclusion = self._non_terminate(obj_id=obj_id,
-                                                 obj=obj,
-                                                 edge=edge,
-                                                 parent=parent,
-                                                 recurser=recurser)
+                conclusion = self._non_termination_conclusion(obj_id=obj_id,
+                                                              obj=obj,
+                                                              edge=edge,
+                                                              parent=parent,
+                                                              recurser=recurser)
 
         # Remove from path (reference-loop avoidance)
         if self._current_path and self._current_path[-1] == obj_id:

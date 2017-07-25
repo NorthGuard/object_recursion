@@ -172,7 +172,7 @@ class TypeCheckTask(TreeRecursionTask):
         # Final string
         return obj_name + inside
 
-    def _finish_recursion(self, *, obj_id, obj, edge, parent, recurser):
+    def _stop_recursion_conclusion(self, *, obj_id, obj, edge, parent, recurser):
         # Extract name
         obj_name = self._extract_name(obj)
 
@@ -182,13 +182,13 @@ class TypeCheckTask(TreeRecursionTask):
     def _extract_name(obj):
         return "None" if obj is None else type(obj).__name__
 
-    def _terminate(self, *, obj_id, obj, edge, parent, recurser):
+    def _termination_conclusion(self, *, obj_id, obj, edge, parent, recurser):
         if isinstance(obj, (str, bool, Number, int, float, complex)):
             return True, self._extract_name(obj=obj)
         else:
             return False, None
 
-    def _non_terminate(self, *, obj_id, obj, edge, parent, recurser):
+    def _non_termination_conclusion(self, *, obj_id, obj, edge, parent, recurser):
         # Extract name
         obj_name = self._extract_name(obj)
 

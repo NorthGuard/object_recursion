@@ -99,12 +99,12 @@ class SizeTask(TreeRecursionTask):
         # Get info
         obj = recurser.objects[obj_id]
 
-        # Split pair
-        key, value = obj
+        # Key and value keys
+        key_id, value_id = recurser.container_children[obj_id]
 
-        # IDs
-        key_id = id(key)
-        value_id = id(value)
+        # Get objects
+        key = recurser.objects[key_id]
+        value = recurser.objects[value_id]
 
         # Sizes (check if used before)
         key_size = value_size = 0
@@ -117,13 +117,16 @@ class SizeTask(TreeRecursionTask):
         self._object_conclusion[obj_id] = (key_size, value_size)
         return key_size, value_size
 
-    def _terminate(self, *, obj_id, obj, edge, parent, recurser):
-        if isinstance(obj, self._terminate_at):
+    def terminate(self, obj):
+        return isinstance(obj, self._terminate_at)
+
+    def _termination_conclusion(self, *, obj_id, obj, edge, parent, recurser):
+        if self.terminate(obj):
             return True, self.get_conclusion(obj_id=obj_id, recurser=recurser)  # sys.getsizeof(obj)
         else:
             return False, None
 
-    def _finish_recursion(self, *, obj_id, obj, edge, parent, recurser):
+    def _stop_recursion_conclusion(self, *, obj_id, obj, edge, parent, recurser):
         include_pointer = self._include_poiner(parent=parent, edge=edge)
 
         # Return conclusion
@@ -142,24 +145,34 @@ class SizeTask(TreeRecursionTask):
         # Pointers deactivated, because is seems like sys.getsizeof() always includes pointers.
         return False
 
-    def _non_terminate(self, *, obj_id, obj, edge, parent, recurser):
+    def _ensure_processed(self, obj_id, obj, recurser, edge, parent):
+        if (isinstance(obj, Dict) or isinstance(obj, Iterable)) and obj_id not in recurser.container_children:
+            recurser._recurse(obj, obj_id, edge=edge, parent=parent)
+
+    def _non_termination_conclusion(self, *, obj_id, obj, edge, parent, recurser):
         include_pointer = self._include_poiner(parent=parent, edge=edge)
 
         # Return conclusion
         size = self.get_conclusion(obj_id=obj_id, recurser=recurser, include_pointer=include_pointer)
 
+        # TODO: This is not an elegant solution, but it seems to fix a bug
+        self._ensure_processed(obj_id=obj_id, obj=obj, recurser=recurser, edge=edge, parent=parent)
+
         # Dictionaries - add size of keys and values
         if isinstance(obj, Dict):
-            if len(recurser.container_children[obj_id]) > 0:
-                inside_objects = recurser.container_children[obj_id]
+            try:
+                if len(recurser.container_children[obj_id]) > 0:
+                    inside_objects = recurser.container_children[obj_id]
 
-                # Split keys and values
-                inside_objects = list(zip(*[self._finish_key_val_pair(obj_id=val, recurser=recurser)
-                                            for val in inside_objects]))
-                key_sizes, value_sizes = inside_objects
+                    # Split keys and values
+                    inside_objects = list(zip(*[self._finish_key_val_pair(obj_id=val, recurser=recurser)
+                                                for val in inside_objects]))
+                    key_sizes, value_sizes = inside_objects
 
-                # Add
-                size += int(sum(key_sizes) + sum(value_sizes))
+                    # Add
+                    size += int(sum(key_sizes) + sum(value_sizes))
+            except KeyError as e:
+                raise e
 
         # If object is iterable - go through contained objects
         elif isinstance(obj, Iterable):

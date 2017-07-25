@@ -69,8 +69,8 @@ False                                             : bool
 Bob(a=1, b=2, c=3)                                : Bob[int,int,int]
 array([1, 2, 3])                                  : ndarray
 array([['1', 'b'], ['3', '4']], dtype='<U21')     : ndarray
-<__main__.Looper object at 0x7fdae8ccaeb8>        : Looper
-[1, [4, [2, [...]]], <__main__.Looper object  ..  : list[Looper|list[int|list[..]]|int]
+<__main__.SomeClass object at 0x7fdae8ccaeb8>        : SomeClass
+[1, [4, [2, [...]]], <__main__.SomeClass object  ..  : list[SomeClass|list[int|list[..]]|int]
 [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, ..  : list[int]
 ```
 
@@ -158,8 +158,8 @@ False                                             : 24                 : 24     
 Bob(a=1, b=2, c=3)                                : 224                : 156         : 72                 
 array([1, 2, 3])                                  : 120                : 120         : 120                
 array([['1', 'b'], ['3', '4']], dtype='<U21')     : 448                : 448         : 448                
-<__main__.Looper object at 0x7fdae8ccaeb8>        : 568                : 168         : 56                 
-[1, [4, [2, [...]]], <__main__.Looper object  ..  : 1712               : 3960        : 888                
+<__main__.SomeClass object at 0x7fdae8ccaeb8>        : 568                : 168         : 56                 
+[1, [4, [2, [...]]], <__main__.SomeClass object  ..  : 1712               : 3960        : 888                
 [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, ..  : 896                : 3664        : 864   
 ```
 

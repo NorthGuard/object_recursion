@@ -63,7 +63,7 @@ def rcontainer_tree_str(obj):
     return the_recurser.recurse(obj)[0][0]
 
 
-def rsize_overlap(*args, terminate_at=None, word_size=8):
+def rsize_overlap(*args, terminate_at=None, word_size=8, verbose=False):
     """
     Computes the sizes of all objects in *args as well as the approximate memory-overlap between the objects.
     :param args: Objects to analyse.
@@ -75,4 +75,4 @@ def rsize_overlap(*args, terminate_at=None, word_size=8):
     """
     comparison_task = SizeComparisonTask(terminate_at=terminate_at, word_size=word_size)
     recurser = ObjectRecursion(tasks=[comparison_task], terminate_at=terminate_at)
-    return recurser.recurse(*args)[0]
+    return recurser.recurse(*args, verbose=verbose)[0]

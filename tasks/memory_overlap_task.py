@@ -146,27 +146,32 @@ if __name__ == "__main__":
     obj2 = [4, a, 5, b]
     obj3 = (10, 11, (b, 12))
 
-    class Looper:
+    class SomeClass:
         def __init__(self):
             self.a = None
 
-    looper1 = Looper()
-    looper2 = Looper()
-    looper3 = Looper()
+    looper1 = SomeClass()
+    looper2 = SomeClass()
+    looper3 = SomeClass()
     looper1.a = looper2
     looper2.a = looper3
     looper3.a = looper1
 
     long_list = [1] * 100
 
+    class_w_dict = SomeClass()
+    class_w_dict.a = {}
+
     cont_looper1 = [1, 2, looper2] + long_list
     cont_looper2 = [2, cont_looper1]
     cont_looper3 = [4, cont_looper2]
     cont_looper1[1] = cont_looper3
 
+    a_dict = {"an_object": looper1}
+
     # #####################################################################
 
-    names = ["obj1", "obj2", "obj3", "long_list", "looper1", "cont_looper1"]
+    names = ["obj1", "obj2", "obj3", "long_list", "looper1", "cont_looper1", "a_dict", "class_w_dict"]
 
     # Objects
     objects = [eval(val) for val in names]

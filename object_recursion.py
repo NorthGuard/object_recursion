@@ -4,6 +4,7 @@ from typing import Tuple, Iterable, Dict, Generator
 from object_recursion.task_base import RecursionTask
 
 import numpy as np
+from dnc.dnc import DNC
 
 
 # TODO: Perhaps make a verbosity system
@@ -40,6 +41,7 @@ class ObjectRecursion:
         self.reference_children = None  # type: dict
         self.reference_root_path = None  # type: list
         self.objects = None  # type: dict
+        self.handled = None  # type: set
 
         # Store
         self._tasks = tasks  # type: [RecursionTask]
@@ -59,6 +61,7 @@ class ObjectRecursion:
         self.reference_children = dict()
         self.reference_root_path = []
         self.objects = dict()
+        self.handled = set()
 
     def print_container(self):
         # TODO: This is a debug method. Delete.
@@ -70,7 +73,7 @@ class ObjectRecursion:
                 string += f"\n     {val}, {self.objects[val]}"
         return string
 
-    def recurse(self, *args):
+    def recurse(self, *args, verbose=False):
         """
         Recurse through objects in args and pass on results.
         """
@@ -84,8 +87,14 @@ class ObjectRecursion:
         # IDs of objects in args
         obj_ids = []
 
+        if verbose:
+            print(f"Recursing over {len(args)} objects with {len(self._tasks)} task(s).")
+
         # Go through objects
         for obj_nr, obj in enumerate(args):
+
+            if verbose:
+                print(f"\tObject {obj_nr + 1} / {len(args)}")
 
             # Intermediate initializations of tasks
             if obj_nr > 0:
@@ -157,23 +166,27 @@ class ObjectRecursion:
         # Check sampling
         if self._sampling is None:
             # Go through all children
-            sample_ids = range(len(inside_ids))
+            for child, child_id in zip(insides, inside_ids):
+                # Don't consider handled objects (avoid loops)
+                if child_id not in self.handled:
+                    self._recurse(obj=child, edge=a_type, parent=obj, obj_id=child_id)
         else:
             # Go through sample of children
             sample_ids = random.sample(range(len(inside_ids)), self._sampling)
 
-        # Go through container samples
-        for sample_id in sample_ids:
-            child = insides[sample_id]
-            child_id = inside_ids[sample_id]
+            # Go through container samples
+            for sample_id in sample_ids:
+                child = insides[sample_id]
+                child_id = inside_ids[sample_id]
 
-            # Don't consider handled objects (avoid loops)
-            if child_id not in self.container_children:
-                self._recurse(obj=child, edge=a_type, parent=obj, obj_id=child_id)
+                # Don't consider handled objects (avoid loops)
+                if child_id not in self.handled:
+                    self._recurse(obj=child, edge=a_type, parent=obj, obj_id=child_id)
 
     def _recurse_reference(self, *, obj, obj_id):
         references = []
         reference_types = []
+        # reference_ids = []
 
         # Add references in class-dictionary to references
         if ObjectRecursion.ClassDict in self._reference_interests:
@@ -208,10 +221,14 @@ class ObjectRecursion:
         for child, child_id, reference_type in zip(references, reference_ids, reference_types):
 
             # Don't consider handled objects (avoid loops)
-            if child_id not in self.reference_children:
+            if child_id not in self.handled:
                 self._recurse(obj=child, edge=reference_type, parent=obj, obj_id=child_id)
 
+    def terminate(self, obj):
+        return isinstance(obj, self._terminate_at)
+
     def _recurse(self, obj, obj_id, edge=None, parent=None):
+        self.handled.add(obj_id)
 
         if obj_id is None:
             obj_id = id(obj)
@@ -225,7 +242,7 @@ class ObjectRecursion:
             task.enter_object(obj=obj, edge=edge, parent=parent, recurser=self)
 
         # Check termination
-        if not isinstance(obj, self._terminate_at):
+        if not self.terminate(obj):
 
             # Containers
             for a_type in ObjectRecursion.ContainerTypes:

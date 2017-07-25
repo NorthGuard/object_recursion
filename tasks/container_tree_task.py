@@ -34,15 +34,15 @@ class ContainerTreePrintTask(TreeRecursionTask):
         string = "  " * depth + self.whitespace.sub(" ", repr(recurser.objects[obj_id]))
         return string
 
-    def _terminate(self, *, obj_id, obj, edge, parent, recurser):
+    def _termination_conclusion(self, *, obj_id, obj, edge, parent, recurser):
         if isinstance(obj, tuple(ObjectRecursion.BaseTerminators)):
             return True, self._produce_name(obj_id=obj_id, recurser=recurser)
         return False, None
 
-    def _finish_recursion(self, *, obj_id, obj, edge, parent, recurser):
+    def _stop_recursion_conclusion(self, *, obj_id, obj, edge, parent, recurser):
         return self._produce_name(obj_id=obj_id, recurser=recurser)
 
-    def _non_terminate(self, *, obj_id, obj, edge, parent, recurser):
+    def _non_termination_conclusion(self, *, obj_id, obj, edge, parent, recurser):
 
         # String
         string = self._produce_name(obj_id=obj_id, recurser=recurser)
