@@ -1,9 +1,6 @@
 import sys
-import textwrap
 from collections import namedtuple
-from numbers import Number
-from typing import Tuple, Iterable, Dict, Generator
-
+from typing import Tuple, Iterable, Dict
 import numpy as np
 
 from object_recursion.object_recursion import ObjectRecursion
