@@ -1,10 +1,10 @@
 import random
 from numbers import Number
 from typing import Tuple, Iterable, Dict, Generator
-from object_recursion.task_base import RecursionTask
 
 import numpy as np
-from dnc.dnc import DNC
+
+from object_recursion.task_base import RecursionTask
 
 
 # TODO: Perhaps make a verbosity system
